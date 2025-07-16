@@ -31,6 +31,13 @@ impl BpxClient {
         res.json().await.map_err(Into::into)
     }
 
+    /// Executes many orders with the given payload.
+    pub async fn execute_orders(&self, payloads: Vec<ExecuteOrderPayload>) -> Result<Vec<Order>> {
+        let endpoint = format!("{}{}", self.base_url, API_ORDER);
+        let res = self.post(endpoint, payloads).await?;
+        res.json().await.map_err(Into::into)
+    }
+
     /// Cancels a specific order by symbol and either order ID or client ID.
     pub async fn cancel_order(&self, symbol: &str, order_id: Option<&str>, client_id: Option<u32>) -> Result<Order> {
         let url = format!("{}{}", self.base_url, API_ORDER);
