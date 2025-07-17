@@ -33,7 +33,7 @@ impl BpxClient {
 
     /// Executes many orders with the given payload.
     pub async fn execute_orders(&self, payloads: Vec<ExecuteOrderPayload>) -> Result<Vec<Order>> {
-        let endpoint = format!("{}{}", self.base_url, API_ORDER);
+        let endpoint = format!("{}{}", self.base_url, API_ORDERS);
         let res = self.post(endpoint, payloads).await?;
         res.json().await.map_err(Into::into)
     }
