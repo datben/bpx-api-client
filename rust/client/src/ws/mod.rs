@@ -27,32 +27,31 @@ impl BpxClient {
         self.internal_subscribe(stream, tx).await
     }
 
+    pub fn sign_ws_payload(&self, stream: &[&str]) -> Value {
+        let timestamp = now_millis();
+        let window = DEFAULT_WINDOW;
+        let message = format!("instruction=subscribe&timestamp={}&window={}", timestamp, window);
+        let verifying_key = STANDARD.encode(self.verifier.to_bytes());
+        let signature = STANDARD.encode(self.signer.sign(message.as_bytes()).to_bytes());
+        json!({
+            "method": "SUBSCRIBE",
+            "params": stream,
+            "signature": [verifying_key, signature, timestamp.to_string(), window.to_string()],
+        })
+    }
+
     async fn internal_subscribe<T>(&self, stream: &[&str], tx: Sender<T>)
     where
         T: DeserializeOwned + Send + 'static,
     {
-        let timestamp = now_millis();
-        let window = DEFAULT_WINDOW;
-        let message = format!("instruction=subscribe&timestamp={}&window={}", timestamp, window);
-
-        let verifying_key = STANDARD.encode(self.verifier.to_bytes());
-        let signature = STANDARD.encode(self.signer.sign(message.as_bytes()).to_bytes());
-
-        let subscribe_message = json!({
-            "method": "SUBSCRIBE",
-            "params": stream,
-            "signature": [verifying_key, signature, timestamp.to_string(), window.to_string()],
-        });
-
+        let subscribe_message = self.sign_ws_payload(stream);
         let ws_url = self.ws_url.as_deref().unwrap_or(BACKPACK_WS_URL);
         let (mut ws_stream, _) = connect_async(ws_url).await.expect("Error connecting to WebSocket");
         ws_stream
             .send(Message::Text(Utf8Bytes::from(subscribe_message.to_string())))
             .await
             .expect("Error subscribing to WebSocket");
-
         tracing::debug!("Subscribed to {stream:#?} streams...");
-
         while let Some(message) = ws_stream.next().await {
             match message {
                 Ok(msg) => match msg {
